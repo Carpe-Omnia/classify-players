@@ -80,7 +80,7 @@ def analyze_and_visualize_race_composition(input_csv_filename="master_nfl_depth_
         # --- Define a consistent color palette for races ---
         # This ensures consistency across all charts
         race_colors = {
-            'White': '#FFFFFF',       # White
+            'White': '#ffe0bd',       # White
             'Black': '#654321',       # Black
             'Asian': '#2ca02c',       # Green
             'Indian': '#d62728',      # Red
