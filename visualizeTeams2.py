@@ -7,6 +7,7 @@ import requests
 from io import BytesIO
 from PIL import Image # Import Pillow for image resizing
 import numpy as np # Import numpy for array conversions
+from collections import defaultdict # For grouping overlapping points
 
 # --- Global Mapping for Team Logos ---
 TEAM_LOGO_MAP = {
@@ -37,7 +38,7 @@ TEAM_LOGO_MAP = {
     'New York Jets': 'nyj',
     'Philadelphia Eagles': 'phi',
     'Pittsburgh Steelers': 'pit',
-    'San Francisco 49ers': 'sf',
+    'San Francisco 49Ers': 'sf',
     'Seattle Seahawks': 'sea',
     'Tampa Bay Buccaneers': 'tb',
     'Tennessee Titans': 'ten',
@@ -89,7 +90,7 @@ def visualize_team_race_composition(input_csv_filename="master_nfl_depth_chart_w
     """
     Generates a scatter plot showing the number of White players vs. Black players for each NFL team,
     using resized team logos as data points.
-    
+    Includes logic to slightly offset overlapping team logos.
     """
     
     input_dir = "combined_depth_charts" 
@@ -140,13 +141,62 @@ def visualize_team_race_composition(input_csv_filename="master_nfl_depth_chart_w
         print("\n--- Team White vs. Black Player Counts ---")
         print(team_composition[['White', 'Black']].to_string())
 
-        # --- Generate Scatter Plot with Logos ---
-        fig, ax = plt.subplots(figsize=(16, 12), facecolor='#f0f0f0') # Larger figure, light gray background
+        # --- Overlap Resolution Logic ---
+        # Store original and adjusted positions
+        team_positions = {}
+        # Group teams by their initial (x, y) coordinates
+        overlapping_groups = defaultdict(list)
 
-        # Add team logos as data points
         for team_name in team_composition.index:
             num_white = team_composition.loc[team_name, 'White']
             num_black = team_composition.loc[team_name, 'Black']
+            team_positions[team_name] = {'original_x': num_white, 'original_y': num_black}
+            overlapping_groups[(num_white, num_black)].append(team_name)
+
+        # Define offsets for overlapping points
+        # These are fractions of a unit to spread out logos
+        offset_distance = 0.75 # Adjust this value to control spacing
+        offsets = [
+            (0, 0),                        # Center (for single or first in group)
+            (offset_distance, offset_distance),  # Top-right
+            (-offset_distance, offset_distance), # Top-left
+            (offset_distance, -offset_distance), # Bottom-right
+            (-offset_distance, -offset_distance),# Bottom-left
+            (0, offset_distance),          # Up
+            (0, -offset_distance),         # Down
+            (offset_distance, 0),          # Right
+            (-offset_distance, 0)          # Left
+            # Add more offsets if more than 9 teams could overlap at the exact same spot
+        ]
+
+        # Apply offsets to overlapping teams
+        for (x, y), teams_at_coords in overlapping_groups.items():
+            if len(teams_at_coords) > 1:
+                print(f"Detected overlap at ({x}, {y}) for teams: {', '.join(teams_at_coords)}. Applying offsets.")
+                for i, team_name in enumerate(teams_at_coords):
+                    if i < len(offsets):
+                        ox, oy = offsets[i]
+                        team_positions[team_name]['adjusted_x'] = x + ox
+                        team_positions[team_name]['adjusted_y'] = y + oy
+                    else:
+                        # Fallback for more than 9 overlaps, just stack for now or create more offsets
+                        team_positions[team_name]['adjusted_x'] = x + offsets[0][0] # No offset
+                        team_positions[team_name]['adjusted_y'] = y + offsets[0][1]
+                        print(f"  Warning: Not enough unique offsets for all teams at ({x}, {y}). Team '{team_name}' might still overlap.")
+            else:
+                # No overlap, use original coordinates
+                team_name = teams_at_coords[0]
+                team_positions[team_name]['adjusted_x'] = x
+                team_positions[team_name]['adjusted_y'] = y
+
+
+        # --- Generate Scatter Plot with Logos ---
+        fig, ax = plt.subplots(figsize=(16, 12), facecolor='#f0f0f0') # Larger figure, light gray background
+
+        # Add team logos as data points using adjusted coordinates
+        for team_name in team_composition.index:
+            adjusted_x = team_positions[team_name]['adjusted_x']
+            adjusted_y = team_positions[team_name]['adjusted_y']
             
             # Get the resized logo image
             logo_img = get_team_logo_image(team_name, logo_cache_dir)
@@ -155,21 +205,20 @@ def visualize_team_race_composition(input_csv_filename="master_nfl_depth_chart_w
                 # Create an OffsetImage object with the resized logo image
                 imagebox = OffsetImage(logo_img, zoom=1.0) 
                 # Create an AnnotationBbox to place the image at specific coordinates
-                ab = AnnotationBbox(imagebox, (num_white, num_black), frameon=False, pad=0.0)
+                ab = AnnotationBbox(imagebox, (adjusted_x, adjusted_y), frameon=False, pad=0.0)
                 ax.add_artist(ab)
             
-            # Removed the ax.text line to remove team names from the plot
-            # ax.text(num_white + 0.5, num_black + 0.5, team_name, fontsize=10,
-            #         path_effects=[pe.withStroke(linewidth=2, foreground="white")],
-            #         ha='left', va='bottom')
-
-        ax.set_title('NFL Team Composition: Number of White vs. Black Players (with Team Logos)', fontsize=18, pad=20)
+        ax.set_title('NFL Team Composition: Number of White vs. Black Players ', fontsize=18, pad=20)
         ax.set_xlabel('Number of White Players', fontsize=14)
         ax.set_ylabel('Number of Black Players', fontsize=14)
         
         # Adjust axes limits based on data range, adding some padding
-        ax.set_xlim(team_composition['White'].min() - 5, team_composition['White'].max() + 5)
-        ax.set_ylim(team_composition['Black'].min() - 5, team_composition['Black'].max() + 5)
+        # Ensure limits encompass all original and adjusted points
+        all_x_coords = [data['adjusted_x'] for data in team_positions.values()]
+        all_y_coords = [data['adjusted_y'] for data in team_positions.values()]
+
+        ax.set_xlim(min(all_x_coords) - 2, max(all_x_coords) + 2)
+        ax.set_ylim(min(all_y_coords) - 2, max(all_y_coords) + 2)
 
         # Set integer ticks for clarity, if appropriate for your data range
         ax.set_xticks(range(int(ax.get_xlim()[0]), int(ax.get_xlim()[1]) + 1, 5))

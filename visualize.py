@@ -113,7 +113,7 @@ def analyze_and_visualize_race_composition(input_csv_filename="master_nfl_depth_
             def autopct_format(pct):
                 return ('%1.1f%%' % pct) if pct >= min_percent_display else ''
 
-            plt.figure(figsize=(10, 8), facecolor='#f0f0f0') # Set plot background color to light gray
+            plt.figure(figsize=(10, 8), facecolor='#006400') # Set plot background color to green to match field for graphics
             plt.pie(sizes, labels=labels, autopct=autopct_format, startangle=140, colors=colors, 
                     pctdistance=0.85, textprops={'fontsize': 10})
             plt.title(title, fontsize=14, pad=20)

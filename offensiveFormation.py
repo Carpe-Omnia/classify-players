@@ -6,7 +6,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from PIL import Image # For robust image loading/handling if needed
 import matplotlib.patheffects as pe # Ensure this is imported for text effects
 
-def create_offensive_formation_graphic(input_charts_dir="race_composition_charts",
+def create_offensive_formation_graphic(input_charts_dir="race_composition_charts_for_embedding",
                                        output_graphic_dir="formation_graphics",
                                        output_graphic_filename="offensive_formation_race_composition.png"):
     """
@@ -33,13 +33,13 @@ def create_offensive_formation_graphic(input_charts_dir="race_composition_charts
         'RG': {'coords': (60, 30), 'label': 'RG'},
         'LT': {'coords': (30, 30), 'label': 'LT'},
         'RT': {'coords': (70, 30), 'label': 'RT'},
-        'QB': {'coords': (50, 20), 'label': 'QB'},
-        'RB': {'coords': (50, 10), 'label': 'RB'}, # Behind QB
-        'WR1': {'coords': (5, 30), 'label': 'WR'}, # Left outside
+        'QB': {'coords': (50, 22), 'label': 'QB'},
+        'RB': {'coords': (50, 15), 'label': 'RB'}, # Behind QB
+        'WR1': {'coords': (10, 30), 'label': 'WR'}, # Left outside
         'WR2': {'coords': (85, 30), 'label': 'WR'}, # Right outside
         'TE': {'coords': (20, 30), 'label': 'TE'}, # Tight End (left)
         'FB': {'coords': (50, 5), 'label': 'FB'}, # Fullback (optional, right of QB)
-        # You can add more like FB, another TE, etc., and adjust coordinates.
+
         # Ensure the filename suffix corresponds to how nfl_race_composition_analysis saves them
     }
 
@@ -62,7 +62,7 @@ def create_offensive_formation_graphic(input_charts_dir="race_composition_charts
 
     fig, ax = plt.subplots(figsize=(18, 12)) # Adjust figure size for a larger canvas
     ax.set_facecolor('#006400') # Dark Green background for "field" effect
-    ax.set_title('NFL Offensive Formation: Player Race Composition', fontsize=20, color='white', pad=30)
+    ax.set_title('NFL Offensive Formation: Player Race Composition', fontsize=40, color='black', pad=30)
     ax.set_xticks([]) # Hide x-axis ticks
     ax.set_yticks([]) # Hide y-axis ticks
     ax.set_xlim(0, 100) # Set fixed axis limits for consistent positioning
@@ -91,8 +91,8 @@ def create_offensive_formation_graphic(input_charts_dir="race_composition_charts
                     pie_chart_img = mpimg.imread(chart_path)
                     
                     # Use OffsetImage to embed the pie chart
-                    # ADJUSTED: Reduced zoom significantly to prevent overlapping
-                    imagebox = OffsetImage(pie_chart_img, zoom=0.05) 
+                    # ADJUSTED: Increased zoom to make charts more legible
+                    imagebox = OffsetImage(pie_chart_img, zoom=0.25) # Increased from 0.05
                     
                     # Create an AnnotationBbox to place the image at the specified coordinates
                     ab = AnnotationBbox(imagebox, coords, frameon=False, pad=0.0)
