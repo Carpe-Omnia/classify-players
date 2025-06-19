@@ -1,0 +1,5 @@
+PlayerName,PlayerUID,InferredRace,RaceConfidence,InferredAge,InferredEmotion,EmotionConfidence,PlayerHeightInches,PlayerWeightLBS,PlayerBirthdate,PlayerCollege,DraftYear,DraftPosition,DraftOrganization,PlayerOverallStatus,PlayerURL
+Calais Campbell,s:20~l:28~a:11284,Black,9962.84%,33,Happy,9999.98%,80,307,9/1/1986 (38),Miami,2008,"Rd 2, Pk 50",ARI,Active,https://www.espn.com/nfl/player/_/id/11284/calais-campbell
+Kelvin Beachum,s:20~l:28~a:15035,Black,9998.54%,29,Neutral,9997.36%,75,308,6/8/1989 (36),SMU,2012,"Rd 7, Pk 248",PIT,Active,https://www.espn.com/nfl/player/_/id/15035/kelvin-beachum
+Aaron Brewer,s:20~l:28~a:15241,White,9999.03%,29,Happy,9981.21%,77,232,7/5/1990 (34),San Diego St,,,,Active,https://www.espn.com/nfl/player/_/id/15241/aaron-brewer
+Jacoby Brissett,s:20~l:28~a:2578570,Black,10000.00%,24,Neutral,9999.98%,76,235,12/11/1992 (32),NC State,2016,"Rd 3, Pk 91",NE,Active,https://www.espn.com/nfl/player/_/id/2578570/jacoby-brissett

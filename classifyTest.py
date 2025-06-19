@@ -96,12 +96,3 @@ except Exception as e:
     print("This might be due to no face being detected, or issues with model download/installation.")
     print("Try setting enforce_detection=False if you suspect no face was found.")
 
-# --- 4. Ethical Considerations (IMPORTANT) ---
-print("\n--- ETHICAL CONSIDERATIONS (IMPORTANT) ---")
-print("Using computer vision for race classification is highly sensitive and prone to bias.")
-print("1. Accuracy: Models often have lower accuracy for certain demographic groups (e.g., darker-skinned individuals).")
-print("2. Bias: Training data biases can lead to misclassifications and perpetuation of stereotypes.")
-print("3. Privacy: Be mindful of data privacy when processing images, especially without explicit consent.")
-print("4. Misuse: Avoid using inferred race data for any discriminatory purposes or individual decision-making.")
-print("The 'race' attribute provided by DeepFace is an algorithmic inference, not a definitive or scientifically rigorous classification of human race, which is a complex social construct.")
-print("Use this information responsibly and with extreme caution, prioritizing aggregate analysis over individual labeling.")
