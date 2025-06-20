@@ -33,11 +33,11 @@ def create_offensive_formation_graphic(input_charts_dir="race_composition_charts
         'LT': {'coords': (30, 30), 'label': 'LT'},
         'RT': {'coords': (70, 30), 'label': 'RT'},
         'QB': {'coords': (50, 22), 'label': 'QB'},
-        'RB': {'coords': (50, 15), 'label': 'RB'},
+        'RB': {'coords': (50, 5), 'label': 'RB'},
         'WR1': {'coords': (10, 30), 'label': 'WR'},
         'WR2': {'coords': (85, 30), 'label': 'WR'},
         'TE': {'coords': (20, 30), 'label': 'TE'},
-        'FB': {'coords': (50, 5), 'label': 'FB'},
+        'FB': {'coords': (50, 15), 'label': 'FB'},
     }
 
     position_chart_filenames = {
