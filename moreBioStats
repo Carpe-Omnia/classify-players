@@ -1,0 +1,224 @@
+import os
+import pandas as pd
+import re # Import regex for parsing
+
+# --- Helper Functions for Data Processing (from your reference script) ---
+
+def convert_height_to_inches(height_str):
+    """
+    Converts a height string (e.g., "6' 8"") to total inches.
+    Returns None if conversion fails.
+    """
+    if not isinstance(height_str, str) or "N/A" in height_str or not height_str.strip():
+        return None
+    try:
+        # Robustly extract feet and inches using regex
+        # This regex handles formats like "6' 8"", "6'8", "6'"
+        match = re.match(r'(\d+)\'\s*(\d+)?', height_str.strip().replace('"', ''))
+        
+        if match:
+            feet = int(match.group(1))
+            inches_str = match.group(2)
+            inches = int(inches_str) if inches_str else 0 # If inches part is missing (e.g., "6'"), default to 0
+            return (feet * 12) + inches
+        else:
+            # If the format doesn't match expected patterns, return None
+            return None
+    except (ValueError, TypeError): # Catch errors from int conversion or NoneType if match fails
+        return None
+
+def parse_draft_info(draft_info_str):
+    """
+    Parses a draft information string (e.g., "2008: Rd 2, Pk 50 (ARI)")
+    into year, position, and organization.
+    Returns (None, None, None) if parsing fails or info is N/A.
+    """
+    year = None
+    position = None
+    organization = None
+
+    if not isinstance(draft_info_str, str) or "N/A" in draft_info_str or not draft_info_str.strip():
+        return year, position, organization
+
+    # Example: "2018: Rd 1, Pk 7 (BUF)"
+    # Regex to capture year, round/pick, and organization
+    match = re.match(r'(\d{4}): Rd (\d+), Pk (\d+) \((.+)\)', draft_info_str)
+    if match:
+        year = int(match.group(1))
+        # Combine Rd and Pk for position for simplicity, or keep separate if needed
+        position = f"Rd {match.group(2)}, Pk {match.group(3)}"
+        organization = match.group(4)
+    else:
+        # Handle cases like "Undrafted" or "Signed"
+        if "Undrafted" in draft_info_str:
+            organization = "Undrafted"
+            position = "Undrafted"
+            year = "Undrafted" # Indicate year as undrafted if appropriate
+        elif "Signed" in draft_info_str: 
+            org_match = re.search(r'\((.+)\)', draft_info_str)
+            if org_match:
+                organization = org_match.group(1)
+            position = "Signed" # Or "Undrafted Free Agent" if that's more accurate
+            year = "Signed" # Indicate year as signed if appropriate
+
+    return year, position, organization
+
+# --- Main Merging Function ---
+
+def merge_depth_chart_with_race_data(
+    master_csv_filename="master_nfl_depth_chart.csv",
+    race_results_csv_filename="player_race_analysis_results.csv",
+    output_csv_filename="master_nfl_depth_chart_with_race.csv"
+):
+    """
+    Merges the master NFL depth chart CSV with the player race analysis results CSV
+    based on PlayerUID, including all relevant bio and emotion data.
+    Also separates 'PlayerHeightWeight' into 'PlayerHeightInches' and 'PlayerWeightLBS'
+    and 'PlayerDraftInfo' into 'DraftYear', 'DraftPosition', 'DraftOrganization'.
+    """
+    
+    input_dir = "combined_depth_charts" # Assuming both input CSVs are in this directory
+    master_csv_path = os.path.join(input_dir, master_csv_filename)
+    race_results_csv_path = os.path.join(input_dir, race_results_csv_filename)
+    output_csv_path = os.path.join(input_dir, output_csv_filename)
+
+    # Validate input files exist
+    if not os.path.exists(master_csv_path):
+        print(f"Error: Master depth chart CSV '{master_csv_path}' not found.")
+        return
+    if not os.path.exists(race_results_csv_path):
+        print(f"Error: Race analysis results CSV '{race_results_csv_path}' not found.")
+        return
+
+    print(f"Loading master depth chart from: {master_csv_path}")
+    print(f"Loading player race analysis results from: {race_results_csv_path}")
+
+    try:
+        # Load the CSV files into pandas DataFrames
+        df_master = pd.read_csv(master_csv_path)
+        df_race = pd.read_csv(race_results_csv_path)
+
+        # Ensure PlayerUID is treated as string to prevent merge issues with leading zeros, etc.
+        df_master['PlayerUID'] = df_master['PlayerUID'].astype(str)
+        df_race['PlayerUID'] = df_race['PlayerUID'].astype(str)
+
+        # Define columns to select from df_race.
+        # Include all relevant new columns from player_race_analysis_results.csv
+        columns_from_race_df = [
+            'PlayerUID', 
+            'InferredRace', 
+            'RaceConfidence', 
+            'InferredAge', # This will be kept for now, but not directly used in the final format
+            'InferredEmotion', 
+            'EmotionConfidence', 
+            'PlayerHeightWeight', # This will be processed further
+            'PlayerBirthdate', 
+            'PlayerCollege', 
+            'PlayerDraftInfo', # This will be processed further
+            'PlayerOverallStatus',
+            'PlayerURL' # Include PlayerURL from the race analysis results
+        ]
+
+        # Merge the two DataFrames on 'PlayerUID'
+        # Using a left merge to keep all players from the master depth chart,
+        # and add analysis data where available.
+        df_merged = pd.merge(
+            df_master, 
+            df_race[columns_from_race_df], # Select all desired columns from race results
+            on='PlayerUID', 
+            how='left',
+            suffixes=('_master', '_analyzed') # Use clear suffixes for overlapping columns
+        )
+        
+        # Post-merge cleanup for PlayerURL if it exists in both and we want one specific version.
+        # If 'PlayerURL_analyzed' exists, use it and drop the '_master' version.
+        # This prioritizes the URL from the scraped data which is more likely to be correct for image fetching.
+        if 'PlayerURL_analyzed' in df_merged.columns:
+            df_merged['PlayerURL'] = df_merged['PlayerURL_analyzed'].fillna(df_merged['PlayerURL_master'])
+            df_merged.drop(columns=['PlayerURL_master', 'PlayerURL_analyzed'], inplace=True)
+        elif 'PlayerURL_master' in df_merged.columns: # If only master URL exists
+             df_merged.rename(columns={'PlayerURL_master': 'PlayerURL'}, inplace=True)
+
+        print("\nStarting transformation of 'PlayerHeightWeight' and 'PlayerDraftInfo' columns...")
+
+        # --- Process PlayerHeightWeight ---
+        # Initialize new columns
+        df_merged['PlayerHeightInches'] = None
+        df_merged['PlayerWeightLBS'] = None
+
+        # Iterate and apply conversion (using apply for vectorization where possible)
+        # Handle cases where PlayerHeightWeight might be NaN or not a string
+        valid_hw_mask = df_merged['PlayerHeightWeight'].notna() & (df_merged['PlayerHeightWeight'] != 'N/A')
+        
+        # Split 'HT/WT' column into height and weight parts
+        # Regex to capture height part (e.g., "6' 3\"") and weight part (e.g., "240lbs")
+        # Handle cases where height/weight might be missing in parts
+        height_weight_parsed = df_merged.loc[valid_hw_mask, 'PlayerHeightWeight'].astype(str).str.extract(r"([\d'\s\"]+)?(?:,\s*(\d+\s*lbs))?")
+
+        # Assign parsed height and weight to new temporary columns
+        df_merged.loc[valid_hw_mask, 'HeightRaw'] = height_weight_parsed[0]
+        df_merged.loc[valid_hw_mask, 'WeightRaw'] = height_weight_parsed[1]
+
+        # Apply height conversion
+        df_merged['PlayerHeightInches'] = df_merged['HeightRaw'].apply(convert_height_to_inches)
+
+        # Extract weight (assuming 'WeightRaw' is like '240lbs' or just '240')
+        weight_extracted = df_merged['WeightRaw'].astype(str).str.extract(r'(\d+)')
+        df_merged['PlayerWeightLBS'] = pd.to_numeric(weight_extracted[0], errors='coerce')
+        
+        # Drop temporary raw columns and the original combined column
+        df_merged.drop(columns=['PlayerHeightWeight', 'HeightRaw', 'WeightRaw'], errors='ignore', inplace=True)
+        
+        print("Processed 'PlayerHeightWeight'. New columns: 'PlayerHeightInches', 'PlayerWeightLBS'.")
+
+        # --- Process PlayerDraftInfo ---
+        # Apply the parse_draft_info function
+        # This creates a Series of tuples (year, position, organization)
+        draft_info_results = df_merged['PlayerDraftInfo'].apply(parse_draft_info)
+
+        # Expand the Series of tuples into separate columns
+        df_merged[['DraftYear', 'DraftPosition', 'DraftOrganization']] = pd.DataFrame(
+            draft_info_results.tolist(), index=df_merged.index
+        )
+        
+        # Drop the original combined column
+        df_merged.drop(columns=['PlayerDraftInfo'], errors='ignore', inplace=True)
+
+        print("Processed 'PlayerDraftInfo'. New columns: 'DraftYear', 'DraftPosition', 'DraftOrganization'.")
+
+        # --- Final Column Ordering (Optional but good for consistent output) ---
+        # Define a desired order for columns in the final CSV
+        final_column_order = [
+            'TeamName', 'PrimaryPosition', 'PrimaryDepth', 'PlayerName', 
+            'PlayerUID', 'PlayerURL', 'InjuryStatus', 'Position2', 'Depth2', 
+            'Position3', 'Depth3', 
+            # Analysis data
+            'InferredRace', 'RaceConfidence', 'InferredEmotion', 'EmotionConfidence',
+            # Processed Bio data
+            'PlayerHeightInches', 'PlayerWeightLBS', 'PlayerBirthdate', 
+            'PlayerCollege', 'DraftYear', 'DraftPosition', 'DraftOrganization', 
+            'PlayerOverallStatus'
+        ]
+        
+        # Filter for columns that actually exist in the DataFrame to avoid KeyError
+        existing_final_columns = [col for col in final_column_order if col in df_merged.columns]
+        
+        # Ensure all columns that were in the original df_merged (before processing)
+        # are also present if not explicitly in final_column_order (e.g., if a new col was added).
+        # This approach ensures no data is accidentally dropped.
+        # Get all current columns, then put desired ones first.
+        remaining_cols = [col for col in df_merged.columns if col not in existing_final_columns]
+        df_merged = df_merged[existing_final_columns + remaining_cols]
+
+        # Save the merged and processed DataFrame to the new CSV file
+        df_merged.to_csv(output_csv_path, index=False, encoding='utf-8')
+
+        print(f"\nSuccessfully merged, processed, and saved data to: {output_csv_path}")
+        print(f"Total players in final merged file: {len(df_merged)}")
+        print(f"Final columns in the output CSV: {list(df_merged.columns)}")
+
+    except Exception as e:
+        print(f"An error occurred during the merging and processing: {e}")
+
+if __name__ == "__main__":
+    merge_depth_chart_with_race_data()
