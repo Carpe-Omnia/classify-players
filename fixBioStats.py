@@ -155,7 +155,7 @@ def process_player_data(input_csv_path, output_csv_path):
 
 # --- Main execution ---
 if __name__ == "__main__":
-    input_file = os.path.join("combined_depth_charts", "output.csv") # Assuming 'output.csv' is your input file
+    input_file = os.path.join("combined_depth_charts", "playdata.csv") # Assuming 'output.csv' is your input file
     processed_file = os.path.join("combined_depth_charts", "processed_player_data.csv") 
     
     process_player_data(input_file, processed_file)
