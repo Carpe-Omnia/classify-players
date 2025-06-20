@@ -97,7 +97,7 @@ def generate_emotion_chart_base64(df):
     emotion_counts = emotion_counts.reindex(valid_emotions_order, fill_value=0)
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.bar(emotion_counts.index, emotion_counts.values, color='#069C5A') # A medium green for bars
+    bars = ax.bar(emotion_counts.index, emotion_counts.values, color='#FFD700') # Changed bar color to Gold/Yellow
     
     ax.set_title('Distribution of Inferred Player Emotions', fontsize=16, pad=15, color='#F0F8FF') # Title in off-white
     ax.set_xlabel('Emotion', fontsize=12, color='#F0F8FF')
